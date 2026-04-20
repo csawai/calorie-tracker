@@ -2,10 +2,7 @@
 
 import { signRequest } from './aws.js';
 
-export async function parseFood(input, env) {
-  const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-
-  const prompt = `Extract food items from this log. For each item return JSON with these exact keys: food (string), qty (string), calories (number), protein_g (number), fat_g (number), carbs_g (number), meal (string).
+export const PROMPT = (input, timestamp) => `Extract food items from this log. For each item return JSON with these exact keys: food (string), qty (string), calories (number), protein_g (number), fat_g (number), carbs_g (number), meal (string).
 All numeric values MUST be numbers, not null or strings.
 Meal must be one of: breakfast, lunch, dinner, snack (lowercase).
 If multiple meals are mentioned (e.g. "X for breakfast and Y for lunch"), assign each food to its correct meal.
@@ -15,10 +12,13 @@ Return ONLY a JSON array, no other text.
 
 Input: "${input}"`;
 
+export async function parseFood(input, env) {
+  const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
   const body = JSON.stringify({
     anthropic_version: 'bedrock-2023-05-31',
     max_tokens: 1024,
-    messages: [{ role: 'user', content: prompt }]
+    messages: [{ role: 'user', content: PROMPT(input, timestamp) }]
   });
 
   const url = `https://bedrock-runtime.${env.AWS_REGION}.amazonaws.com/model/${env.BEDROCK_MODEL}/invoke`;
