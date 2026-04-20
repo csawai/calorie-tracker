@@ -1,81 +1,157 @@
-# Calorie Tracker
+# 🍕 Calorie Tracker
 
-Type what you ate → AI parses it → logs to Google Sheets.
+Type what you ate → AI parses calories & macros → logs to Google Sheets.
 
 ```
-ate had 2 eggs and chai for breakfast
-✅ breakfast: Eggs (140cal, 12g protein), Chai (30cal, 1g protein)
+f had 2 eggs and chai for breakfast
+✅ breakfast: eggs (140cal, 12g P), chai (30cal, 1g P)
+```
+
+Works from any terminal. No app needed.
+
+## Commands
+
+```bash
+f <what you ate>          # log food
+f today                   # daily summary
+f undo                    # delete last entry
+f week                    # 7-day averages
 ```
 
 ## Setup
 
-### 1. Google Sheets
+### Prerequisites
 
-1. Create a new Google Sheet
-2. Name the first tab `Log`
-3. Add headers in row 1: `Date | Time | Meal | Food | Qty | Calories | Protein | Carbs | Fat | Raw Input`
-4. Copy the spreadsheet ID from the URL: `https://docs.google.com/spreadsheets/d/<THIS_PART>/edit`
-
-### 2. Google Service Account
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials
-2. Create a Service Account → download the JSON key
-3. Enable the Google Sheets API for your project
-4. Share your spreadsheet with the service account email (the `client_email` in the JSON)
-
-### 3. AWS (Bedrock)
-
-You need an IAM user/role with `bedrock:InvokeModel` permission in us-east-1 (or your preferred region).
-
-Make sure Claude Haiku is enabled in your Bedrock console.
-
-### 4. Deploy
+- [Node.js](https://nodejs.org/) installed
+- A [Cloudflare](https://cloudflare.com) account (free)
+- A [Google Cloud](https://console.cloud.google.com) service account with Sheets API enabled
+- An AI provider key (pick one below)
 
 ```bash
-cd calorie-tracker
-npm install wrangler -g  # if you don't have it
+npm install -g wrangler
+wrangler login
+```
 
-# Set secrets
+### 1. Clone & deploy
+
+```bash
+git clone https://github.com/csawai/calorie-tracker.git
+cd calorie-tracker
+```
+
+### 2. Pick your AI provider
+
+#### Option A: AWS Bedrock (default)
+
+No code changes needed. Set secrets:
+
+```bash
 wrangler secret put AWS_ACCESS_KEY_ID
 wrangler secret put AWS_SECRET_ACCESS_KEY
-wrangler secret put SPREADSHEET_ID
-wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON
-# ^ paste the entire JSON file contents when prompted
+```
 
-# Deploy
+Your IAM user needs `bedrock:InvokeModel` permission. Enable Claude Haiku in the [Bedrock console](https://console.aws.amazon.com/bedrock/).
+
+#### Option B: Anthropic Claude (direct API)
+
+Edit `index.js` — change the import:
+
+```js
+import { parseFood } from './src/parser-claude.js';
+```
+
+Set secret:
+
+```bash
+wrangler secret put ANTHROPIC_API_KEY
+```
+
+Get your key at [console.anthropic.com](https://console.anthropic.com/).
+
+#### Option C: OpenAI
+
+Edit `index.js` — change the import:
+
+```js
+import { parseFood } from './src/parser-openai.js';
+```
+
+Set secret:
+
+```bash
+wrangler secret put OPENAI_API_KEY
+```
+
+Get your key at [platform.openai.com](https://platform.openai.com/).
+
+### 3. Google Sheets
+
+1. Create a [service account](https://console.cloud.google.com/iam-admin/serviceaccounts) and download the JSON key
+2. Enable the [Google Sheets API](https://console.cloud.google.com/apis/library/sheets.googleapis.com)
+3. Create a new Google Sheet
+4. Share the sheet with your service account email (the `client_email` in the JSON)
+5. Set secrets:
+
+```bash
+wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON
+# paste the entire JSON key file contents when prompted
+
+wrangler secret put SPREADSHEET_ID
+# from your sheet URL: https://docs.google.com/spreadsheets/d/THIS_PART/edit
+```
+
+### 4. Set up the sheet
+
+```bash
+node setup-sheet.js /path/to/service-account.json YOUR_SPREADSHEET_ID
+```
+
+This creates a `Log` tab with headers and a `Daily` tab with auto-calculating formulas.
+
+### 5. Deploy
+
+```bash
 wrangler deploy
 ```
 
-### 5. Terminal Alias
+You'll get a URL like `https://calorie-tracker.<you>.workers.dev`
+
+### 6. Terminal alias
 
 Add to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-export CALORIE_TRACKER_URL="https://calorie-tracker.<your-subdomain>.workers.dev"
-alias ate='~/calorie-tracker/ate.sh'
+export CALORIE_TRACKER_URL="https://calorie-tracker.<you>.workers.dev"
+alias f="~/path/to/calorie-tracker/ate.sh"
 ```
 
-Then: `source ~/.zshrc`
+Then `source ~/.zshrc` and you're done.
 
-## Usage
+## Sheet Structure
 
-```bash
-ate had 2 eggs and toast for breakfast
-ate chicken biryani for lunch
-ate a banana and some almonds
-ate pizza and beer for dinner
-```
+**Log tab** — one row per food item:
 
-If you don't mention a meal, it infers from current time.
+| Date | Time | Meal | Food | Qty | Calories | Protein | Fat | Carbs |
+|------|------|------|------|-----|----------|---------|-----|-------|
 
-## Sheet Formulas (optional)
+**Daily tab** — auto-calculated per day:
 
-Add these in a separate "Dashboard" tab:
+| Date | Calories | Protein | Fat | Carbs | Meals | Protein % |
+|------|----------|---------|-----|-------|-------|-----------|
 
-| What | Formula |
-|------|---------|
-| Today's calories | `=SUMIF(Log!A:A, TODAY(), Log!F:F)` |
-| Today's protein | `=SUMIF(Log!A:A, TODAY(), Log!G:G)` |
-| Today's carbs | `=SUMIF(Log!A:A, TODAY(), Log!H:H)` |
-| Today's fat | `=SUMIF(Log!A:A, TODAY(), Log!I:I)` |
-| Breakfast cals today | `=SUMIFS(Log!F:F, Log!A:A, TODAY(), Log!C:C, "breakfast")` |
+## Customization
+
+- **AI provider**: swap `src/parser-*.js` (see above)
+- **Commands**: add your own in `src/commands.js` — export a function that takes `(env)` and returns a string
+- **Storage**: swap `src/sheets.js` with your own backend (Notion, Airtable, etc.)
+- **Model**: change `BEDROCK_MODEL` in `wrangler.toml` or set `OPENAI_MODEL`/`ANTHROPIC_MODEL` env vars
+
+## Stack
+
+- [Cloudflare Workers](https://workers.cloudflare.com/) — serverless runtime
+- [AWS Bedrock](https://aws.amazon.com/bedrock/) / [Anthropic](https://anthropic.com) / [OpenAI](https://openai.com) — AI parsing
+- [Google Sheets API](https://developers.google.com/sheets/api) — storage
+
+## License
+
+MIT
