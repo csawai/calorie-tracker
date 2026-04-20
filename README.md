@@ -1,36 +1,67 @@
-# 🔥 Calorie Tracker
+# YACL — Yet Another Calorie Logger
 
-> Type what you ate. That's it. AI handles the rest.
+> Because tracking calories shouldn't feel like a second job.
 
-A dead-simple calorie & macro tracker that lives in your terminal. No apps, no UI, no friction — just type and go.
+---
+
+## The Problem
+
+You know the drill. You eat something, then you:
+
+1. Open some bloated app with 47 tabs
+2. Search their database for "homemade dal" (good luck)
+3. Guess the portion size from a dropdown that only has "small / medium / large"
+4. Manually pick breakfast/lunch/dinner
+5. Repeat for every single item
+6. Do this 4x a day
+7. Give up by Thursday
+
+It's exhausting. You're not tracking calories its more like you're doing data entry. And the moment it feels like work, you stop.
+
+---
+
+## The Fix
 
 ```bash
-$ f had 2 eggs and chai for breakfast
-✅ breakfast: eggs (140cal, 12g P), chai (30cal, 1g P)
+f had dal rice and 1 roti for lunch
+✅ lunch: dal (150cal, 9g P), rice (130cal, 3g P), roti (99cal, 3g P)
+```
 
-$ f today
+That's it. Type what you ate, in your own words. AI figures out the food, estimates macros, detects the meal, and logs it to a Google Sheet. No app. No dropdowns. No friction.
+
+Check your day:
+```bash
+f today
 📊 Today (2026-04-20)
 Calories: 872 | Protein: 79g | Fat: 33g | Carbs: 56g
 Meals: breakfast, lunch (5 items)
-
-  breakfast: egg (214 cal, 18.6g P)
-  breakfast: butter (102 cal, 0.1g P)
-  lunch: chicken (284 cal, 53.8g P)
-  lunch: rice (173 cal, 3.5g P)
-  lunch: chapati (99 cal, 3g P)
 ```
 
 ---
 
 ## ✨ Features
 
-- **Natural language** — write however you want: "had dal rice for lunch", "2 eggs butter toast breakfast"
-- **Multi-meal parsing** — "eggs for breakfast and chicken rice for lunch" logs both correctly
+- **Natural language** — "had 2 eggs and chai for breakfast" just works
+- **Multi-meal** — "eggs for breakfast and chicken rice for lunch" logs both
 - **Auto meal detection** — skip the meal name, it infers from time of day
-- **Macro tracking** — calories, protein, fat, carbs per item
-- **Daily dashboard** — auto-calculated Google Sheet with daily totals & protein %
-- **Terminal commands** — `today`, `undo`, `week` built in
-- **Modular** — swap AI provider, storage backend, or add commands in minutes
+- **Full macros** — calories, protein, fat, carbs per item
+- **Google Sheets** — your data, your sheet, forever accessible
+- **Daily dashboard** — auto-calculated totals & protein %
+- **Terminal-first** — works from Mac, Linux, or any shell
+- **iOS** — works via Apple Shortcuts (see below)
+- **Modular** — swap AI provider, storage, or add commands in minutes
+- **Self-hosted** — your keys, your data, your instance
+
+---
+
+## 📖 Commands
+
+```bash
+f <what you ate>          # log food
+f today                   # daily summary
+f undo                    # delete last entry
+f week                    # 7-day averages
+```
 
 ---
 
@@ -48,13 +79,11 @@ Meals: breakfast, lunch (5 items)
 ### Install
 
 ```bash
-# 1. Install wrangler & login
 npm install -g wrangler
 wrangler login
 
-# 2. Clone
-git clone https://github.com/csawai/calorie-tracker.git
-cd calorie-tracker
+git clone https://github.com/csawai/yacl.git
+cd yacl
 ```
 
 ---
@@ -118,44 +147,31 @@ Get your key → [platform.openai.com](https://platform.openai.com/)
 
 ## 📊 Google Sheets Setup
 
-#### 1. Create a Service Account
+1. **Create a Service Account**
+   - [Google Cloud Console → IAM → Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
+   - Create new → Keys → Add Key → JSON → Download
 
-1. Go to [Google Cloud Console → IAM → Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
-2. Create a new service account
-3. Click it → Keys → Add Key → JSON → Download
+2. **Enable Sheets API**
+   - [APIs & Services → Library](https://console.cloud.google.com/apis/library/sheets.googleapis.com) → Enable
 
-#### 2. Enable Sheets API
+3. **Create & Share Your Sheet**
+   - Create a new [Google Sheet](https://sheets.new)
+   - Copy the spreadsheet ID from the URL: `https://docs.google.com/spreadsheets/d/THIS_PART/edit`
+   - Share with your service account email (`client_email` in the JSON) → Editor access
 
-Go to [APIs & Services → Library](https://console.cloud.google.com/apis/library/sheets.googleapis.com) → Enable **Google Sheets API**
+4. **Set Secrets**
+   ```bash
+   wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON
+   # paste entire JSON contents
 
-#### 3. Create & Share Your Sheet
-
-1. Create a new [Google Sheet](https://sheets.new)
-2. Copy the spreadsheet ID from the URL:
+   wrangler secret put SPREADSHEET_ID
+   # paste the ID from your sheet URL
    ```
-   https://docs.google.com/spreadsheets/d/COPY_THIS_PART/edit
+
+5. **Initialize Sheet**
+   ```bash
+   node setup-sheet.js /path/to/service-account.json YOUR_SPREADSHEET_ID
    ```
-3. Share the sheet with your service account email (found in the JSON as `client_email`) — give it **Editor** access
-
-#### 4. Set Secrets
-
-```bash
-wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON
-# → paste entire JSON file contents when prompted
-
-wrangler secret put SPREADSHEET_ID
-# → paste the ID from your sheet URL
-```
-
-#### 5. Initialize Sheet Structure
-
-```bash
-node setup-sheet.js /path/to/your-service-account.json YOUR_SPREADSHEET_ID
-```
-
-This creates:
-- **Log** tab — raw food entries (Date, Time, Meal, Food, Qty, Calories, Protein, Fat, Carbs)
-- **Daily** tab — auto-calculated daily totals with protein %
 
 ---
 
@@ -165,10 +181,7 @@ This creates:
 wrangler deploy
 ```
 
-You'll get:
-```
-https://calorie-tracker.<your-subdomain>.workers.dev
-```
+You'll get: `https://yacl.<your-subdomain>.workers.dev`
 
 ---
 
@@ -177,60 +190,54 @@ https://calorie-tracker.<your-subdomain>.workers.dev
 Add to `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-export CALORIE_TRACKER_URL="https://calorie-tracker.<your-subdomain>.workers.dev"
-alias f="/path/to/calorie-tracker/ate.sh"
+export CALORIE_TRACKER_URL="https://yacl.<your-subdomain>.workers.dev"
+alias f="/path/to/yacl/ate.sh"
 ```
 
 ```bash
 source ~/.zshrc
 ```
 
-Done. Type `f` and eat.
-
 ---
 
-## 📖 Usage
+## 📱 iOS Setup (Apple Shortcuts)
 
-```bash
-# Log food
-f 3 eggs and toast for breakfast
-f chicken biryani for lunch
-f protein shake banana milk for dinner
-f some almonds                          # auto-detects meal from time
+1. Open **Shortcuts** → tap **+**
+2. Add these actions:
 
-# Multi-meal in one go
-f eggs for breakfast and dal rice chapati for lunch
-
-# Commands
-f today                                 # today's summary
-f undo                                  # remove last entry
-f week                                  # 7-day averages
 ```
+Ask for Input → Prompt: "What did you eat?"
+Get Contents of URL → POST to your worker URL, Body: [Provided Input]
+Show Result → [Contents of URL]
+```
+
+3. Name it "Log Food" → Add to Home Screen
+4. Say "Hey Siri, Log Food" to use voice
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-Terminal (curl)
-  → Cloudflare Worker
-    → AI (parses food → structured JSON)
-    → Google Sheets (appends row)
-  ← Response
+You (terminal / iOS / anything with HTTP)
+  → Cloudflare Worker (free, serverless)
+    → AI parses natural language → structured JSON
+    → Google Sheets API appends rows
+  ← Confirmation with calories & macros
 ```
 
 ```
-calorie-tracker/
+yacl/
 ├── index.js              ← Router (40 lines)
 ├── src/
-│   ├── parser.js         ← AWS Bedrock parser (default)
-│   ├── parser-claude.js  ← Anthropic direct parser
-│   ├── parser-openai.js  ← OpenAI parser
-│   ├── sheets.js         ← Google Sheets read/write/delete
-│   ├── aws.js            ← AWS Signature V4 signing
+│   ├── parser.js         ← AWS Bedrock (default)
+│   ├── parser-claude.js  ← Anthropic direct
+│   ├── parser-openai.js  ← OpenAI
+│   ├── sheets.js         ← Google Sheets client
+│   ├── aws.js            ← AWS Signature V4
 │   └── commands.js       ← today, undo, week
 ├── ate.sh                ← Terminal script
-├── setup-sheet.js        ← One-time sheet initializer
+├── setup-sheet.js        ← One-time sheet setup
 └── wrangler.toml         ← Config
 ```
 
@@ -240,45 +247,11 @@ calorie-tracker/
 
 | What | How |
 |------|-----|
-| Swap AI provider | Change import in `index.js` (see above) |
-| Change model | Edit `wrangler.toml` or set env vars (`OPENAI_MODEL`, `ANTHROPIC_MODEL`) |
-| Add commands | Export a function in `src/commands.js` that takes `(env)` → returns string |
-| Change storage | Replace `src/sheets.js` with your own (Notion, Airtable, Supabase, etc.) |
-| Change timezone | Search for `Asia/Kolkata` and replace with yours |
-
-### Adding a Custom Command
-
-```js
-// src/commands.js
-export async function goal(env) {
-  const data = await today(env);
-  const remaining = 2000 - data.calories;
-  return `🎯 ${remaining} cal remaining today`;
-}
-
-// Don't forget to add it to COMMANDS:
-export const COMMANDS = { today, undo, week, goal };
-```
-
----
-
-## 📱 iOS (coming soon)
-
-Use Apple Shortcuts:
-1. Create a shortcut with "Ask for Input" → "Get Contents of URL" (POST to your worker URL)
-2. Show the response
-
----
-
-## 🧠 How It Works
-
-1. You type: `"had 2 eggs and chai for breakfast"`
-2. Worker sends it to AI with a structured prompt
-3. AI returns: `[{food: "eggs", calories: 140, protein_g: 12, ...}, {food: "chai", ...}]`
-4. Worker appends rows to Google Sheets
-5. You get: `✅ breakfast: eggs (140cal, 12g P), chai (30cal, 1g P)`
-
-The AI estimates calories/macros based on common nutritional data. It's approximate but consistent — good enough for tracking trends.
+| Swap AI provider | Change import in `index.js` |
+| Change model | Edit `wrangler.toml` or env vars |
+| Add commands | Export a function in `src/commands.js` |
+| Change storage | Replace `src/sheets.js` (Notion, Airtable, etc.) |
+| Change timezone | Replace `Asia/Kolkata` with yours |
 
 ---
 
@@ -286,11 +259,9 @@ The AI estimates calories/macros based on common nutritional data. It's approxim
 
 | Component | Cost |
 |-----------|------|
-| Cloudflare Worker | Free (100k requests/day) |
-| Google Sheets API | Free (300 requests/min) |
-| Claude Haiku (Bedrock) | ~$0.001 per log entry |
-| Claude Haiku (direct) | ~$0.001 per log entry |
-| GPT-4o-mini | ~$0.001 per log entry |
+| Cloudflare Worker | Free (100k req/day) |
+| Google Sheets API | Free |
+| AI per log entry | ~$0.001 |
 
 Basically free for personal use.
 
@@ -298,11 +269,11 @@ Basically free for personal use.
 
 ## License
 
-MIT — do whatever you want with it.
+MIT - Do whatever the "f" you want. 
 
 ---
 
 <p align="center">
-  Built with frustration at every calorie tracking app being too complicated.<br>
+  <i>Built because every calorie app is either too complicated, too ugly, or too expensive.</i><br>
   <b>Just type what you ate. Done.</b>
 </p>
