@@ -1,4 +1,4 @@
-# YACL — Yet Another Calorie Logger
+# Calorie Tracker
 
 > Because tracking calories shouldn't feel like a second job.
 
@@ -82,8 +82,8 @@ f week                    # 7-day averages
 npm install -g wrangler
 wrangler login
 
-git clone https://github.com/csawai/yacl.git
-cd yacl
+git clone https://github.com/csawai/calorie-tracker.git
+cd calorie-tracker
 ```
 
 ---
@@ -181,7 +181,7 @@ Get your key → [platform.openai.com](https://platform.openai.com/)
 wrangler deploy
 ```
 
-You'll get: `https://yacl.<your-subdomain>.workers.dev`
+You'll get: `https://calorie-tracker.<your-subdomain>.workers.dev`
 
 ---
 
@@ -190,8 +190,8 @@ You'll get: `https://yacl.<your-subdomain>.workers.dev`
 Add to `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-export CALORIE_TRACKER_URL="https://yacl.<your-subdomain>.workers.dev"
-alias f="/path/to/yacl/ate.sh"
+export CALORIE_TRACKER_URL="https://calorie-tracker.<your-subdomain>.workers.dev"
+alias f="/path/to/calorie-tracker/ate.sh"
 ```
 
 ```bash
@@ -227,7 +227,7 @@ You (terminal / iOS / anything with HTTP)
 ```
 
 ```
-yacl/
+calorie-tracker/
 ├── index.js              ← Router (40 lines)
 ├── src/
 │   ├── parser.js         ← AWS Bedrock (default)
