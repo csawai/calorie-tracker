@@ -2,6 +2,10 @@
 
 > Because tracking calories shouldn't feel like a second job.
 
+<p align="center">
+  <img src="demo.gif" alt="demo — type what you ate, get calories and macros" width="600">
+</p>
+
 ---
 
 ## The Problem
