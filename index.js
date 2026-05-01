@@ -3,7 +3,7 @@
 // Commands: today, undo, week
 
 import { parseFood } from './src/parser.js';
-import { appendRows } from './src/sheets.js';
+import { insertRowsSorted } from './src/sheets.js';
 import { COMMANDS } from './src/commands.js';
 
 export default {
@@ -26,13 +26,15 @@ export default {
       const foods = await parseFood(input, env);
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
       const time = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
-      const rows = foods.map(f => [today, time, f.meal.toLowerCase(), f.food, f.qty, f.calories, f.protein_g, f.fat_g, f.carbs_g]);
 
-      await appendRows(rows, env);
+      const rows = foods.map(f => [f.date || today, time, f.meal.toLowerCase(), f.food, f.qty, f.calories, f.protein_g, f.fat_g, f.carbs_g]);
+      await insertRowsSorted(rows, env);
 
+      const dates = [...new Set(foods.map(f => f.date || today))];
+      const dateLabel = dates.length === 1 && dates[0] === today ? '' : ` (${dates.join(', ')})`;
       const summary = foods.map(f => `${f.food} (${f.calories}cal, ${f.protein_g}g P)`).join(', ');
       const meals = [...new Set(foods.map(f => f.meal))].join('+');
-      return new Response(`✅ ${meals}: ${summary}`);
+      return new Response(`✅ ${meals}${dateLabel}: ${summary}`);
     } catch (e) {
       return new Response(`❌ ${e.message}`, { status: 500 });
     }

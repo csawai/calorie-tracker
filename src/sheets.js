@@ -37,6 +37,33 @@ export async function appendRows(rows, env) {
   if (!res.ok) throw new Error(`Sheets append: ${res.status} ${await res.text()}`);
 }
 
+// Insert rows in date-sorted order (ascending). Skips header row (row 0).
+export async function insertRowsSorted(rows, env) {
+  const token = await getToken(env);
+  const existing = await readRows(`${env.SHEET_NAME}!A:I`, env);
+
+  // Merge new rows into existing (skip header at index 0)
+  const data = existing.length > 1 ? existing.slice(1) : [];
+  data.push(...rows);
+  data.sort((a, b) => {
+    if (a[0] !== b[0]) return a[0] < b[0] ? -1 : 1; // date
+    if (a[1] !== b[1]) return (a[1] || '') < (b[1] || '') ? -1 : 1; // time
+    return 0;
+  });
+
+  // Write back all data rows (keep header)
+  const header = existing.length ? existing[0] : ['Date','Time','Meal','Food','Qty','Calories','Protein','Fat','Carbs'];
+  const all = [header, ...data];
+  const range = encodeURIComponent(`${env.SHEET_NAME}!A1:I${all.length}`);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${env.SPREADSHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: all })
+  });
+  if (!res.ok) throw new Error(`Sheets update: ${res.status} ${await res.text()}`);
+}
+
 export async function readRows(range, env) {
   const token = await getToken(env);
   const encoded = encodeURIComponent(range);
